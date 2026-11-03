@@ -99,7 +99,7 @@ for id, def in Settlements.List do
 	sign.Size = UDim2.fromOffset(220, 50)
 	sign.StudsOffset = Vector3.new(0, 10, 0)
 	sign.AlwaysOnTop = true
-	sign.MaxDistance = 400
+	sign.MaxDistance = 180
 	local text = Instance.new("TextLabel")
 	text.BackgroundTransparency = 1
 	text.Size = UDim2.fromScale(1, 1)
