@@ -3,14 +3,14 @@
   "tree": {
     "$className": "DataModel",
     "ServerScriptService": {
-      "Server": { "$path": "src/server" }
+      "Game1": { "$path": "src/server" }
     },
     "ReplicatedStorage": {
-      "Shared": { "$path": "src/shared" }
+      "Game1": { "$path": "src/shared" }
     },
     "StarterPlayer": {
       "StarterPlayerScripts": {
-        "Client": { "$path": "src/client" }
+        "Game1Client": { "$path": "src/client/Game1Client.client.luau" }
       }
     }
   }
