@@ -1,0 +1,7 @@
+.DS_Store
+*.rbxl
+*.rbxlx
+*.lock
+*.blend1
+.env
+*.secret
