@@ -21,7 +21,7 @@ export type SettlementDef = {
 }
 
 local Tiers: { [string]: Tier } = {
-	Hamlet = { weight = 1, defenders = 4, defenderHealth = 60, defenderDamage = 6, raidLoot = 100, garrison = 200, tribute = 12, upkeep = 4 },
+	Hamlet = { weight = 1, defenders = 3, defenderHealth = 60, defenderDamage = 3, raidLoot = 100, garrison = 200, tribute = 12, upkeep = 4 },
 	Village = { weight = 2, defenders = 6, defenderHealth = 80, defenderDamage = 8, raidLoot = 250, garrison = 500, tribute = 28, upkeep = 9 },
 	Town = { weight = 5, defenders = 10, defenderHealth = 120, defenderDamage = 11, raidLoot = 800, garrison = 1600, tribute = 85, upkeep = 30 },
 	City = { weight = 12, defenders = 14, defenderHealth = 180, defenderDamage = 14, raidLoot = 2500, garrison = 5000, tribute = 240, upkeep = 90 },

@@ -178,12 +178,16 @@ local function failRaid(raid: ActiveRaid, reason: string)
 	local def = Settlements.List[raid.id]
 	if reason == "Fell" then
 		local profile = PlayerData.Get(player)
-		if profile then
+		local firstRaid = profile ~= nil and profile.Data.Game1.Raids == 0
+		Analytics.Custom(player, "PersonalDeath", 1, raid.id)
+		if profile and not firstRaid then
 			profile.Data.Game1.WoundedUntil = os.time() + EconomyConfig.WoundedSeconds
 			PlayerData.MarkDirty(profile)
+			Realm.Toast(player, `You fell at {def.name}. Wounded: rest {EconomyConfig.WoundedSeconds // 60} minutes before fighting again.`)
+		else
+			-- Tutorial grace: no wound before the first victory (LihFolk: first death explained, never unfair).
+			Realm.Toast(player, `You fell at {def.name}! Try again: strike with F and blast them with your spell (Q).`)
 		end
-		Analytics.Custom(player, "PersonalDeath", 1, raid.id)
-		Realm.Toast(player, `You fell at {def.name}. Wounded: rest {EconomyConfig.WoundedSeconds // 60} minutes before fighting again.`)
 	else
 		Realm.Toast(player, `You left {def.name}. The raid is over.`)
 	end
