@@ -219,11 +219,72 @@ def build_magic_rings(name, seed):
     return [b.to_object() for b in (low, high, crys)]
 
 
+def build_dark_magic(name, seed):
+    """Sinister citadel magic: broken crimson thorn band, downward-spiked ghost-green crown, jagged obsidian shards
+    with crimson tips. Same layout as MagicRings so it spins the same way in Studio."""
+    from mathutils import Matrix
+    rng = random.Random(seed)
+    band = lh.MeshBuilder(f"{name}_ThornBand", rng)
+    crown = lh.MeshBuilder(f"{name}_Crown", rng)
+    shards = lh.MeshBuilder(f"{name}_Shards", rng)
+    tips = lh.MeshBuilder(f"{name}_ShardGlow", rng)
+    crimson, ghost, obsidian = H("#ff2238"), H("#6bff8f"), lh.by_normal(H("#2a2030"), H("#1c1522"), H("#0e0a12"))
+    # broken band: 5 arcs with gaps, thorns pointing out and up
+    r = 19.0
+    for arc in range(5):
+        a0 = 2 * math.pi * arc / 5 + rng.uniform(-0.08, 0.08)
+        n = 6
+        for k in range(n):
+            a = a0 + (2 * math.pi / 5) * 0.72 * k / (n - 1)
+            seg = 2 * math.pi * r / 5 * 0.72 / (n - 1) * 1.05
+            z = math.sin(a * 3) * 0.6                                    # wobble, not a clean circle
+            band.obox((math.cos(a) * r, math.sin(a) * r, z), (0.6, seg, 0.6), Matrix.Rotation(a, 3, "Z"), crimson)
+            if k % 2 == 0:
+                out = r + rng.uniform(2.2, 3.6)
+                band.cone((math.cos(a) * r, math.sin(a) * r, z), (math.cos(a) * out, math.sin(a) * out, z + rng.uniform(0.5, 2.0)),
+                          0.45, 4, crimson)
+    # crown above the spire: jagged ring with spikes hanging DOWN
+    rc = 9.0
+    for k in range(28):
+        a = 2 * math.pi * k / 28
+        seg = 2 * math.pi * rc / 28 * 1.05
+        crown.obox((math.cos(a) * rc, math.sin(a) * rc, 0.0), (0.35, seg, 0.35), Matrix.Rotation(a, 3, "Z"), ghost)
+    for k in range(9):
+        a = 2 * math.pi * k / 9 + 0.2
+        L = rng.uniform(2.0, 4.5)
+        crown.cone((math.cos(a) * rc, math.sin(a) * rc, 0.0), (math.cos(a) * rc * 0.92, math.sin(a) * rc * 0.92, -L), 0.4, 4, ghost)
+        crown.cone((math.cos(a + 0.35) * rc, math.sin(a + 0.35) * rc, 0.0),
+                   (math.cos(a + 0.35) * rc * 1.05, math.sin(a + 0.35) * rc * 1.05, 1.4), 0.3, 4, ghost)
+    # obsidian shards, uneven sizes and heights, crimson glowing tips
+    for k in range(7):
+        a = 2 * math.pi * k / 7 + rng.uniform(-0.2, 0.2)
+        rr = rng.uniform(23.0, 28.0)
+        x, y, z = math.cos(a) * rr, math.sin(a) * rr, rng.uniform(-4.0, 4.0)
+        h = rng.uniform(3.0, 6.0)
+        lean = (rng.uniform(-0.8, 0.8), rng.uniform(-0.8, 0.8))
+        shards.cone((x, y, z), (x + lean[0], y + lean[1], z + h * 0.7), 1.1, 4, obsidian)
+        shards.cone((x, y, z), (x - lean[0] * 0.4, y - lean[1] * 0.4, z - h * 0.45), 1.1, 4, obsidian)
+        tips.cone((x + lean[0] * 0.7, y + lean[1] * 0.7, z + h * 0.49), (x + lean[0], y + lean[1], z + h * 0.7 + 0.15), 0.36, 4, crimson)
+    return [b.to_object() for b in (band, crown, shards, tips)]
+
+
+MAGIC_GLOW = {
+    "MagicRings_RuneBand": (0.37, 0.89, 1.0), "MagicRings_Halo": (0.69, 0.48, 1.0), "MagicRings_Crystals": (1.0, 0.83, 0.42),
+    "DarkMagic_ThornBand": (1.0, 0.08, 0.15), "DarkMagic_Crown": (0.42, 1.0, 0.56), "DarkMagic_ShardGlow": (1.0, 0.08, 0.15),
+}
+
+
 def finish(mods):
-    glow = tuple(m.name for m in mods if m.name.endswith("_Glow") or m.name.startswith("MagicRings_"))
-    fin = {m.name: (dict(style="faceted") if m.name.endswith(("_Walls", "_Body")) or m.name.startswith("MagicRings_") else dict(style="soft", bevel_width=0.06, smooth_angle=35)) for m in mods}
+    glow = tuple(m.name for m in mods if m.name.endswith("_Glow") or (m.name in MAGIC_GLOW))
+    fin = {m.name: (dict(style="faceted") if m.name.endswith(("_Walls", "_Body")) or m.name.startswith(("MagicRings_", "DarkMagic_")) else dict(style="soft", bevel_width=0.06, smooth_angle=35)) for m in mods}
     lh.recentre(mods)
     lh.finish_modules(mods, fin, glow=glow)
+    for m in mods:
+        if m.name in MAGIC_GLOW:
+            lh.glow_material(m, rgb=MAGIC_GLOW[m.name], strength=6.0, name=f"Glow_{m.name}")
+
+
+ONLY = sys.argv[2].split(",") if len(sys.argv) > 2 else None
 
 
 def run():
@@ -240,9 +301,12 @@ def run():
         "WhiteTower": lambda: build_white_tower("WhiteTower", 5),
         "GothicTower": lambda: build_gothic_tower("GothicTower", 9),
         "MagicRings": lambda: build_magic_rings("MagicRings", 4),
+        "DarkMagic": lambda: build_dark_magic("DarkMagic", 13),
     }
     report = {}
     for key, fn in builds.items():
+        if ONLY and key not in ONLY:
+            continue
         clear()
         mods = fn()
         finish(mods)
@@ -253,7 +317,7 @@ def run():
             me.calc_loop_triangles()
             tris += len(me.loop_triangles)
             m.evaluated_get(dg).to_mesh_clear()
-        floating = lh.floating_shells(mods, base_names=tuple(m.name for m in mods if "Foundation" in m.name or "Body" in m.name or m.name.startswith("MagicRings_")))
+        floating = lh.floating_shells(mods, base_names=tuple(m.name for m in mods if "Foundation" in m.name or "Body" in m.name or m.name.startswith(("MagicRings_", "DarkMagic_"))))
         lh.render_preview(mods, os.path.join(OUT, f"{key}_preview.png"), size=(900, 900))
         lh.export_modules(mods, os.path.join(OUT, key), combined=f"{key}_All")
         report[key] = dict(tris=tris, floating=floating if isinstance(floating, int) else (len(floating) if hasattr(floating, "__len__") else floating))
