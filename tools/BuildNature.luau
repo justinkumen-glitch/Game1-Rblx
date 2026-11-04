@@ -276,6 +276,34 @@ local BLOCKED = {
 	[Enum.Material.Ice] = true, [Enum.Material.CrackedLava] = true,
 }
 
+-- Blender meshes (Nature Kit 1) win over part templates once imported into ServerStorage.Game1Meshes.
+-- Each part template maps to one or more mesh names; the scatter picks between them.
+local MESH_FOR: { [string]: { string } } = {
+	Broadleaf = { "Oak", "OakBig" }, Autumn = { "AutumnOak", "Birch" }, Pine = { "Pine", "PineTall" },
+	SnowPine = { "SnowPine" }, DeadTree = { "DeadTree" }, Cactus = { "Cactus" }, Palm = { "Palm" },
+	GiantMushroom = { "GiantMushroom" }, Rock = { "Boulder" }, Flowers = { "Flowers" },
+	RedMushrooms = { "RedMushrooms" }, IceSpike = { "IceSpikes" }, Crystal = { "Crystals", "BlueCrystals" },
+	LavaShard = { "LavaShard" },
+}
+local ROCK_BY_BIOME = { Desert = "BoulderSand", Ashen = "BoulderDark" }
+
+local function meshModel(mp: MeshPart, name: string): Model
+	local m = Instance.new("Model")
+	m.Name = name
+	local copy = mp:Clone()
+	copy.Anchored = true
+	copy.Color = Color3.new(1, 1, 1) -- vertex colours carry the paint
+	copy.Material = Enum.Material.SmoothPlastic
+	local isTree = not (name:find("Flower") or name:find("Mushrooms") or name:find("Crystal"))
+	copy.CanCollide = isTree
+	copy.CanQuery = isTree
+	copy.CanTouch = false
+	copy.CollisionFidelity = Enum.CollisionFidelity.Hull
+	copy.CFrame = CFrame.new(0, mp.Size.Y / 2, 0)
+	copy.Parent = m
+	return finish(m)
+end
+
 function Nature.Templates(): Folder
 	local folder = ServerStorage:FindFirstChild("Game1Nature") :: Folder?
 	if folder then
@@ -288,8 +316,33 @@ function Nature.Templates(): Folder
 		m.Name = name
 		m.Parent = f
 	end
+	-- mesh versions, if the kit has been imported
+	local meshes = ServerStorage:FindFirstChild("Game1Meshes")
+	if meshes then
+		for _, mp in meshes:GetDescendants() do
+			if mp:IsA("MeshPart") then
+				local mm = meshModel(mp, "Mesh_" .. mp.Name)
+				mm.Parent = f
+			end
+		end
+	end
 	f.Parent = ServerStorage
 	return f
+end
+
+local function resolve(templates: Folder, name: string, biomeId: string, rng: Random): Model
+	local names = MESH_FOR[name]
+	if name == "Rock" and ROCK_BY_BIOME[biomeId] then
+		names = { ROCK_BY_BIOME[biomeId] }
+	end
+	if names then
+		local pickName = names[rng:NextInteger(1, #names)]
+		local mesh = templates:FindFirstChild("Mesh_" .. pickName)
+		if mesh then
+			return mesh :: Model
+		end
+	end
+	return templates:FindFirstChild(name) :: Model
 end
 
 function Nature.Run(opts: { seed: number? }?)
@@ -378,9 +431,12 @@ function Nature.Run(opts: { seed: number? }?)
 					continue
 				end
 				local e = pick(spec.mix, rng)
-				local tpl = templates:FindFirstChild(e[1]) :: Model
+				local tpl = resolve(templates, e[1], biome.id, rng)
 				local m = tpl:Clone()
 				local s = longTail(rng, e[3], e[4])
+				if tpl.Name:sub(1, 5) == "Mesh_" then
+					s *= if small then (if e[1] == "Rock" then 1.5 else 1.3) else 1.7 -- kit meshes are modelled smaller
+				end
 				m:ScaleTo(s)
 				local tilt = if small then 0 else rng:NextNumber(-4, 4)
 				m:PivotTo(CFrame.new(hit.Position - Vector3.new(0, 0.4 * s, 0)) * CFrame.Angles(math.rad(tilt), rng:NextNumber(0, math.pi * 2), math.rad(tilt * 0.5)))
