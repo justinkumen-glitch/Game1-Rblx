@@ -215,7 +215,8 @@ end
 
 -- Final ground: natural + river channels + pads (pads win over rivers). Returns
 -- height, biome index, waterTop (or nil), surface kind ("ground" | "road" | "river" | "pad").
-function World.Ground(x: number, z: number): (number, number, number?, string)
+-- roads/rivers: optional pre-filtered lists (the terrain builder passes only the ones near a chunk).
+function World.Ground(x: number, z: number, roads: { { Vector2 } }?, rivers: { any }?): (number, number, number?, string)
 	local h, bi = World.NaturalHeight(x, z)
 	local p = Vector2.new(x, z)
 	local waterTop: number? = nil
@@ -229,7 +230,7 @@ function World.Ground(x: number, z: number): (number, number, number?, string)
 		waterTop = World.SeaLevel + 12
 	end
 
-	for _, river in World.Rivers do
+	for _, river in (rivers or World.Rivers) do
 		local pts = river.points
 		local best = math.huge
 		for i = 1, #pts - 1 do
@@ -250,7 +251,7 @@ function World.Ground(x: number, z: number): (number, number, number?, string)
 		end
 	end
 
-	for _, road in World.Roads do
+	for _, road in (roads or World.Roads) do
 		local best = math.huge
 		for i = 1, #road - 1 do
 			local d = segDist(p, road[i], road[i + 1])
