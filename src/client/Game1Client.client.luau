@@ -131,6 +131,22 @@ local function toast(text: string)
 end
 Net.On("Toast", toast)
 
+-- Zone banner + per-biome lighting ("Entering Verdant Vale")
+local zoneLabel = label({ Text = "", Font = Enum.Font.Fantasy, TextSize = 34, TextScaled = false, AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.new(0.5, 0, 0, 96), Size = UDim2.new(0.6, 0, 0, 44), TextTransparency = 1, TextStrokeTransparency = 1, Parent = gui })
+local zoneToken = 0
+require(ReplicatedStorage.Game1:WaitForChild("Client"):WaitForChild("ZoneLighting")).Start(function(name: string)
+	zoneToken += 1
+	local token = zoneToken
+	zoneLabel.Text = name
+	TweenService:Create(zoneLabel, TweenInfo.new(0.6), { TextTransparency = 0, TextStrokeTransparency = 0.5 }):Play()
+	task.delay(3.5, function()
+		if token == zoneToken then
+			TweenService:Create(zoneLabel, TweenInfo.new(1.2), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+		end
+	end)
+end)
+
 ---------------------------------------------------------------------------
 -- Species select (first join)
 ---------------------------------------------------------------------------
@@ -315,7 +331,10 @@ end)
 local world = workspace:WaitForChild("Game1World", 30)
 local settlementsFolder = world and world:WaitForChild("Settlements", 10)
 
-Net.On("RealmState", function(states: { [string]: string }, regions: { [string]: boolean })
+local lastStates: { [string]: string } = {}
+local lastRegions: { [string]: boolean } = {}
+
+local function applyRealm()
 	if not settlementsFolder then
 		return
 	end
@@ -323,8 +342,8 @@ Net.On("RealmState", function(states: { [string]: string }, regions: { [string]:
 		local settlement = settlementsFolder:FindFirstChild(id)
 		local prompt = settlement and settlement:FindFirstChild("RaidPrompt", true)
 		if prompt and prompt:IsA("ProximityPrompt") then
-			local owned = states[id]
-			local unlocked = Settlements.Regions[def.region].unlocked or regions[def.region] == true
+			local owned = lastStates[id]
+			local unlocked = Settlements.Regions[def.region].unlocked or lastRegions[def.region] == true
 			prompt.Enabled = owned == nil
 			prompt.ActionText = if unlocked then "Raid" else "Unexplored"
 			if owned and settlement then
@@ -334,5 +353,48 @@ Net.On("RealmState", function(states: { [string]: string }, regions: { [string]:
 				end
 			end
 		end
+	end
+end
+
+Net.On("RealmState", function(states: { [string]: string }, regions: { [string]: boolean })
+	lastStates, lastRegions = states, regions
+	applyRealm()
+end)
+-- Big map streams settlements in and out: re-apply when one arrives.
+if settlementsFolder then
+	settlementsFolder.ChildAdded:Connect(function()
+		task.defer(applyRealm)
+	end)
+end
+
+---------------------------------------------------------------------------
+-- Magic rings over cities and the citadel spin (client-only visual)
+---------------------------------------------------------------------------
+local RunService = game:GetService("RunService")
+local spinners: { [Model]: { centre: Vector3, speed: number, angle: number, base: CFrame } } = {}
+local function track(inst: Instance)
+	if inst:IsA("Model") and inst:GetAttribute("SpinSpeed") then
+		local centre = inst:GetAttribute("SpinCentre") :: Vector3
+		spinners[inst] = { centre = centre, speed = inst:GetAttribute("SpinSpeed") :: number, angle = 0, base = inst:GetPivot() }
+		inst.Destroying:Once(function()
+			spinners[inst] = nil
+		end)
+	end
+end
+if world then
+	for _, d in world:GetDescendants() do
+		track(d)
+	end
+	world.DescendantAdded:Connect(track)
+end
+RunService.RenderStepped:Connect(function(dt: number)
+	for m, s in spinners do
+		if m.Parent == nil then
+			spinners[m] = nil
+			continue
+		end
+		s.angle += s.speed * dt
+		local pivot = CFrame.new(s.centre) * CFrame.Angles(0, s.angle, 0) * CFrame.new(-s.centre) * s.base
+		m:PivotTo(pivot)
 	end
 end)
