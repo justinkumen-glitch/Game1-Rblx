@@ -2,6 +2,8 @@
 
 This repo holds the code for one Roblox game. Notes, progress and analytics live in the Obsidian vault, not here.
 
+**Start of every session: read `HANDOFF.md` for current state, then the vault as below.**
+
 ## Repo rules
 - `src/server/` → ServerScriptService (server scripts, `Name.server.luau`; modules `Name.luau`)
 - `src/client/` → StarterPlayerScripts (client scripts, `Name.client.luau`)
